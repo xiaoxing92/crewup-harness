@@ -34,12 +34,12 @@ doctor -> install -> inspect -> init -> check -> run -> verify -> review -> fini
 - logs
 - summary report
 
-## Lite-v2 opt-in run shape
+## Lite-v2 default run shape
 
-`lite-v2` is a lightweight explicit profile for low-risk scoped tasks:
+`lite-v2` is the default direct lightweight profile for low-risk scoped tasks when no mode/profile is provided:
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
+npx crewup run "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 It produces root-level lightweight evidence instead of strict owner artifacts:
@@ -49,7 +49,7 @@ It produces root-level lightweight evidence instead of strict owner artifacts:
 - `validation.md`
 - `summary.md`
 
-It does not create native subagent tasks or `native-subagent-plan.json`. The strict workflow remains unchanged for default, standard, and full runs.
+It does not create native subagent tasks or `native-subagent-plan.json`. The strict workflow remains unchanged for standard and full runs. Use explicit `--mode=lite` when you want formal lightweight delegation with tester/reviewer/release evidence.
 
 ## Close rule
 

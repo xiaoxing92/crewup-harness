@@ -44,16 +44,16 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-Explicit strict requests stay on the strict workflow. The harness does not reduce cost by silently skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas. `lite` is a separate explicit mode, not an automatic downgrade.
+Explicit strict requests stay on the strict workflow. The harness does not reduce cost by silently skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas. When no mode is provided, CrewUp may choose the documented direct `lite-v2` default for narrow low-risk work; explicit `--mode=lite` remains a formal lightweight workflow.
 
 Negation-aware routing only removes false-positive scope. If the user says `no backend/database/auth/routing` or `不需要 backend、database、auth、routing`, CrewUp should not spawn backend/database owner agents just to confirm they are irrelevant. This does not weaken the strict workflow for the remaining real scope.
 
-## Lite Opt-In Flow
+## Lite Lightweight Flows
 
-`lite` is an explicit lightweight path and is not the strict workflow. It maps internally to the `lite-v2` profile and exists for low-risk, scoped implementation work where native subagent provenance would be heavier than the task itself.
+`lite-v2` is the default direct lightweight path for low-risk, scoped implementation work where native subagent provenance would be heavier than the task itself.
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
+npx crewup run "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 Its run shape is:
@@ -68,7 +68,9 @@ state.json
 RUN_STATUS.md
 ```
 
-`lite` does not generate native subagent tasks, does not create `native-subagent-plan.json`, and does not require `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`. The main agent may implement directly inside the scoped task. `finish` checks that `validation.md` and `summary.md` are no longer pending before archiving success.
+`lite-v2` does not generate native subagent tasks, does not create `native-subagent-plan.json`, and does not require `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`. The main agent may implement directly inside the scoped task. `finish` checks that `validation.md` and `summary.md` are no longer pending before archiving success.
+
+Use explicit `--mode=lite` when you want a formal lightweight run with delegated tester/reviewer/release evidence and shorter budgets than strict.
 
 Use strict or `strict --risk=high` instead for database, auth, security, deploy, cross-module, or audit-heavy work.
 

@@ -1,46 +1,47 @@
-# CrewUp Lite 轻量流程
+# CrewUp lite-v2 直接轻量流程
 
 [English](./lite-v2.en.md) | 中文
 
-`lite` 是公开、显式启用的轻量 CrewUp 流程。它内部映射到 `lite-v2` profile，适合低风险、小范围实现任务：记录小规格、任务清单、验证证据和总结，然后由主 agent 在范围内直接实现。
+`lite-v2` 是 CrewUp 的直接轻量 profile。现在当 `run` 或 `continue` 没有显式 mode/profile，且请求属于小范围低风险工作时，会默认使用它。
 
-`lite` 不替代 strict，也不能被描述成 strict 审计交付证明。
+需要强制走这条直接轻量路径时，可以使用 `--profile=lite-v2`。
+
+## 适用场景
+
+适合：
+
+- UI 样式、布局、文案、空状态、移动端适配。
+- 单模块 bug 修复。
+- 范围明确、native subagent provenance 成本高于收益的小改动。
+
+如果你希望保留委派式 tester/reviewer/release 证据，但不想走完整 strict 规划链，用 `--mode=lite`。
+
+数据库、认证、安全、部署、跨模块或审计要求高的任务，使用 `--mode=strict` 或 `--mode=strict --risk=high`。
 
 ## 启用方式
 
+小任务默认路径：
+
 ```bash
-npx crewup run --mode=lite "修复 Admin 文章列表移动端横向溢出，并根据项目配置自行发现和执行必要验证"
+npx crewup run "修复 Admin 文章列表移动端横向溢出，并发现/运行验证"
 ```
 
-旧脚本仍可使用兼容别名：
+显式指定直接轻量：
 
 ```bash
 npx crewup run --profile=lite-v2 "修复一个小 UI 问题"
+npx crewup run --profile=lite_v2 "修复一个小 UI 问题"
 ```
 
-聊天里这样说：
+聊天中：
 
 ```text
-使用 CrewUp lite，只改前端样式和交互。完成后根据项目配置自行发现并执行必要验证，必要时做页面预览验证，并更新 validation.md 和 summary.md。
+使用 CrewUp。修复这个小 runtime bug，并运行必要验证。
 ```
 
-## 适合
+## 生成文件
 
-- UI 样式、布局、文案、空状态、移动端适配。
-- 单模块 bugfix。
-- 小功能、小脚本、小文档联动修改。
-- 需要 run 证据，但不需要完整 strict 审计链的工作。
-
-## 不适合
-
-- 数据库 schema、migration 或真实数据变更。
-- Auth、权限、安全、支付、生产部署、CI/CD。
-- 跨多个业务模块的大功能。
-- 需要完整审计证据的正式交付。
-
-这些场景应该使用 `strict` 或 `strict --risk=high`。
-
-## 固定生成文件
+`lite-v2` run 会创建根级轻量文件：
 
 ```text
 .harness/runs/<run-id>/
@@ -53,56 +54,31 @@ npx crewup run --profile=lite-v2 "修复一个小 UI 问题"
   RUN_STATUS.md
 ```
 
-`lite` 不创建 native subagent task，也不生成 `logs/native-subagents/native-subagent-plan.json`。
+它不会创建 native subagent task，也不会创建 `logs/native-subagents/native-subagent-plan.json`。
 
-## 四个核心文件
+## 收口规则
 
-| 文件 | 作用 |
-| --- | --- |
-| `spec.md` | 目标、范围、非目标、验收标准、风险 |
-| `tasks.md` | 实现清单、允许范围、验证发现步骤 |
-| `validation.md` | 从项目配置发现的命令/检查、页面预览或 smoke 证据 |
-| `summary.md` | 结果、改动文件、验证结论、剩余风险 |
+`finish` 会检查：
 
-`validation.md` 和 `summary.md` 不能停留在 pending 状态。`finish` 会在它们未更新时拒绝 success。
-
-## 推荐执行顺序
-
-```text
-run --mode=lite
-  -> read spec.md/tasks.md
-  -> implement directly in scoped files
-  -> discover and run validation
-  -> update validation.md
-  -> update summary.md
-  -> crewup finish <run-id>
-```
-
-## 完成标准
-
-- `spec.md` 和 `tasks.md` 存在。
+- `spec.md` 存在。
+- `tasks.md` 存在。
 - `validation.md` 存在且不再是 pending。
 - `summary.md` 存在且不再是 pending。
-- 验证失败时不能伪装成 success，应该修复或归档为 blocked/partial。
 
-## 和 strict 的区别
+验证失败时不要强制 success。记录失败，继续修复，或归档为 blocked/partial。
 
-| 能力 | lite | strict |
-| --- | --- | --- |
-| 启用方式 | 显式 `--mode=lite` | 显式 `--mode=strict` |
-| 主 agent 写业务代码 | 允许，但必须限范围 | 不允许，必须 owner agent |
-| native subagents | 默认不创建 | 主路径 |
-| owner provenance | 不要求 strict 级别 | 必须 |
-| tester/reviewer/release | 不要求 | 必须 |
-| 适合 | 低风险、小范围 | 高风险、跨模块、审计交付 |
+## 与 formal lite / strict 的区别
 
-## 卡住处理
+| 能力 | lite-v2 | `--mode=lite` | strict |
+| --- | --- | --- | --- |
+| 小任务默认 | 是 | 否 | 否 |
+| 主 agent 范围内写代码 | 允许 | 不允许，交给 owner agent | 不允许，必须 owner agent |
+| Native subagents | 无 | 有，较短正式链 | 有，完整链 |
+| tester/reviewer/release | 无 | 有 | 有 |
+| 适合 | 低风险直接改动 | 小任务但需要委派证据 | 审计/完整交付 |
 
-先检查 `validation.md`、`summary.md` 是否仍是 pending，验证发现是否充分、实际检查是否失败，以及是否发现需要升级 strict 的风险。风险升级时不要强行 `finish`，应记录 blocked/partial，或者创建 strict continuation。
+## 维护规则
 
-## 稳定边界
-
-- 不把 `lite` 做成自动默认。
-- 不删除 strict。
-- 不让 `lite` 跳过验证证据。
-- 不把 `lite` success 描述成 strict audit success。
+- 不要把 `lite-v2` success 描述成 strict audit success。
+- 不要跳过验证证据。
+- 需要委派证据时升级到 `--mode=lite` 或 `--mode=strict`。

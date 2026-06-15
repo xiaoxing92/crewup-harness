@@ -96,9 +96,9 @@ Chat:
 Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, and value persists after refresh. Scope: tiny frontend only; no backend, database, auth, or routing. Discover and run the necessary validation from the project configuration.
 ```
 
-When the user explicitly asks for CrewUp in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<request>"`, extract the runId, then continue orchestration with `next-agent` or `drive`.
+When the user explicitly asks for CrewUp in chat, the user may name the mode. If no mode is named, the main agent can run `npx crewup run "<request>"` and let CrewUp print the selected default mode/profile. It should then extract the runId and continue orchestration with `next-agent` or `drive`.
 
-If a real `run` or `continue` command omits `--mode`, CrewUp prints a mode picker and exits without creating a run. Choose `plan` for planning only, `lite` for a small low-risk implementation, or `strict` for full multi-agent delivery.
+If a real `run` or `continue` command omits `--mode`, CrewUp now chooses a conservative default and creates the run. Small low-risk work defaults to direct `lite-v2`; broad, risky, or explicitly strict work defaults to strict/full. Use `--mode` or `--profile` to override.
 
 ## Observe Dispatch
 
@@ -136,21 +136,21 @@ Implementation agents are candidates at run creation time. The actual implementa
 
 `lite` only means shorter requirements/architecture artifacts and smaller context budgets. It does not skip `requirements-plan -> requirements -> architect`. When `implementation-plan.md` is missing, implementation agents must remain blocked/skipped.
 
-## Lightweight `lite` Run
+## Lightweight Runs
 
-For low-risk, narrow tasks, explicitly choose `lite`:
+For low-risk, narrow tasks, you can omit mode and use the default direct `lite-v2` path:
 
 ```bash
-npx crewup run --mode=lite "Fix a small frontend layout issue and discover/run the necessary project validation"
+npx crewup run "Fix a small frontend layout issue and discover/run the necessary project validation"
 ```
 
-`lite` creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or a native subagent plan. The main agent may implement directly inside the scoped task, then must update `validation.md` and `summary.md` before running:
+`lite-v2` creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or a native subagent plan. The main agent may implement directly inside the scoped task, then must update `validation.md` and `summary.md` before running:
 
 ```bash
 npx crewup finish <run-id>
 ```
 
-Use `lite` only when explicitly requested. Use `strict` or `strict --risk=high` for database, auth, security, deploy, cross-module, or audit-heavy work.
+Use `--mode=lite` when you want a formal lightweight run with delegated tester/reviewer/release evidence. Use `strict` or `strict --risk=high` for database, auth, security, deploy, cross-module, or audit-heavy work.
 
 Detailed guide: [Lite Lightweight Flow](./lite-v2.en.md).
 
@@ -216,7 +216,7 @@ To continue from a blocked/partial/canceled run:
 npx crewup continue <run-id> --mode=lite "Continue from the previous blocker and reuse the existing requirement and architecture."
 ```
 
-This creates a new run and includes the source run's `RUN_STATUS.md`, `RUN_SUMMARY.md`, requirements, and architecture artifacts in the new input context. `continue` also requires an explicit mode; without it, CrewUp prints a continuation picker and creates no run.
+This creates a new run and includes the source run's `RUN_STATUS.md`, `RUN_SUMMARY.md`, requirements, and architecture artifacts in the new input context. If `continue` omits `--mode`, CrewUp chooses a continuation default from the new request and source run evidence; use `--mode` or `--profile` to override.
 
 If the run started a preview service:
 

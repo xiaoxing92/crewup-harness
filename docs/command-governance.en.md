@@ -33,9 +33,9 @@ These are the stable commands regular users and the main agent should treat as t
 | `npx crewup finish <run-id>` | Attempt successful closeout when evidence is ready | Cannot replace validation; refuses success when evidence is incomplete |
 | `npx crewup archive <run-id> --outcome=...` | Record a non-success outcome | Non-success stays open by default unless `--close` is explicit |
 | `npx crewup cancel <run-id> --reason="..."` | User intentionally stops this run | Closes as canceled while preserving evidence |
-| `npx crewup continue <run-id> --mode=lite "..."` | Continue from a previous run with a small scoped implementation | Reuses source evidence, but the user chooses the mode explicitly |
-| `npx crewup continue <run-id> --mode=strict "..."` | Continue from a previous run with full delivery | Reuses source evidence, but the user chooses the mode explicitly |
-| `npx crewup continue <run-id> --mode=plan "..."` | Continue from a previous run with planning only | Reuses source evidence, but the user chooses the mode explicitly |
+| `npx crewup continue <run-id> --mode=lite "..."` | Continue from a previous run with a small scoped formal implementation | Reuses source evidence and forces formal lightweight mode |
+| `npx crewup continue <run-id> --mode=strict "..."` | Continue from a previous run with full delivery | Reuses source evidence and forces strict mode |
+| `npx crewup continue <run-id> --mode=plan "..."` | Continue from a previous run with planning only | Reuses source evidence and forces planning mode |
 
 ### Tier 2: Strict Operator Commands
 
@@ -106,7 +106,8 @@ These commands recover abnormal state, support older runs, or maintain runtime f
 | Mode | Activation | Internal profile | Best for | Not for |
 | --- | --- | --- | --- | --- |
 | Normal chat | No CrewUp signal | none | Q&A, explanations, tiny informal discussion | Formal work requiring evidence, reports, or archive |
-| `lite` | `--mode=lite` or chat says "use CrewUp lite" | `lite-v2` | Low-risk, narrow work the main agent can complete reliably | Database, auth, security, deploy, broad cross-module changes |
+| Default small work | no explicit mode/profile and request is narrow/low-risk | `lite-v2` | Low-risk, narrow work the main agent can complete reliably | Database, auth, security, deploy, broad cross-module changes |
+| `lite` | `--mode=lite` or chat says "use CrewUp lite" | `lite` | Formal lightweight implementation with delegated verification/release evidence | Direct tiny fixes where `lite-v2` evidence is enough |
 | `strict` | `--mode=strict` or chat says "use CrewUp strict" | `standard` | Normal formal delivery with strict evidence | Tiny low-risk changes where full delegation adds friction |
 | `strict --risk=high` | `--mode=strict --risk=high` or chat says "strict, high risk" | `full` | High-risk, broad, audit-heavy delivery | Fast informal fixes |
 | `plan` | `--mode=plan` or chat says "CrewUp plan only" | `plan_only` | No-code planning, acceptance, architecture, implementation plan | Actual implementation |
@@ -115,10 +116,10 @@ These commands recover abnormal state, support older runs, or maintain runtime f
 Selection rules:
 
 - No explicit CrewUp signal means no run.
-- A real `crewup run` requires explicit `--mode` or the compatibility `--profile`; plain `npx crewup run "..."` prints the mode picker and creates no run.
-- A real `crewup continue` also requires explicit `--mode` or the compatibility `--profile`; plain `npx crewup continue <run-id> "..."` prints the continuation picker and creates no continuation run.
+- A real `crewup run` may omit `--mode`; CrewUp chooses a conservative default profile from the request and prints the selected mode/profile.
+- A real `crewup continue` may omit `--mode`; CrewUp chooses a continuation default from the new request and source run evidence.
 - `--profile` remains a compatibility alias for existing automation, but new user-facing docs and chat prompts should use `--mode`.
-- The main agent must not auto-select a mode for the user; in chat, the user must name the desired CrewUp mode.
+- The main agent should not invent hidden mode semantics in chat. It may let the CLI choose the documented default, and it should report the chosen mode/profile to the user.
 - If a lite run discovers high-risk scope, stop lightweight success closeout, record blocked/partial, and create or recommend a strict continuation.
 
 ## Fixed Run Files By Mode
@@ -127,7 +128,8 @@ Every CrewUp run is indexed in reports/knowledge during archive, including non-s
 
 | Mode | Always generated | Native subagent plan | Knowledge/report indexing |
 | --- | --- | --- | --- |
-| `lite` | `spec.md`, `tasks.md`, `validation.md`, `summary.md`, `RUN_STATUS.md`, `RUN_SUMMARY.md` | No | Yes, on archive/finish |
+| default `lite-v2` | `spec.md`, `tasks.md`, `validation.md`, `summary.md`, `RUN_STATUS.md`, `RUN_SUMMARY.md` | No | Yes, on archive/finish |
+| `lite` | strict-style run files with shorter budgets and delegated tester/reviewer/release evidence | Yes | Yes, on archive/finish |
 | `strict` | `input.md`, `state.json`, `tasks/`, `artifacts/`, `logs/native-subagents/`, `RUN_STATUS.md`, `RUN_SUMMARY.md` | Yes | Yes, on archive/finish |
 | `strict --risk=high` | Same as `strict`, with `full` profile gates and broader evidence expectations | Yes | Yes, on archive/finish |
 | `plan` | `planning.md`, `acceptance.md`, `architecture-plan.md`, `implementation-plan.md`, `review.md`, `validation.md`, `summary.md` | Yes, for planning/review roles only | Yes, on archive/finish |

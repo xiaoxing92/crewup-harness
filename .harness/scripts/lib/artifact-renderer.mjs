@@ -30,8 +30,15 @@ export async function validateOwnedArtifactHeadings({ root, runId, agentId, pars
     for (const heading of rules.required_headings ?? []) {
       if (!hasMarkdownHeading(content, heading)) problems.push(`Owned artifact missing heading: ${file} -> ${heading}`);
     }
+    problems.push(...validateArtifactSemantics(file, content));
   }
   return problems;
+}
+
+export function validateArtifactSemantics(file, content) {
+  if (file === "review-report.md") return validateReviewReport(content);
+  if (file === "test-report.md") return validateTestReport(content);
+  return [];
 }
 
 export function ownedUpdatedArtifactFiles({ agentId, parsedJson, artifactSchema }) {
@@ -111,6 +118,46 @@ function normalizeArtifactFileName(target) {
 function hasMarkdownHeading(content, heading) {
   const escaped = escapeRegExp(String(heading).trim());
   return new RegExp(`^#{2,6}\\s+${escaped}\\s*$`, "im").test(content);
+}
+
+function validateReviewReport(content) {
+  const problems = [];
+  const conclusion = sectionText(content, "Conclusion");
+  if (conclusion && !/- \[[xX]\]\s*(pass|passed|conditional pass|fail|failed)\b/i.test(conclusion)) {
+    problems.push("review-report.md Conclusion must include exactly one checkbox result such as `- [x] pass`.");
+  }
+  const blocking = sectionText(content, "Blocking Issues");
+  if (/- \[[xX]\]\s*(pass|passed|conditional pass)\b/i.test(conclusion) && blocking && sectionHasSubstantiveBullet(blocking)) {
+    problems.push("review-report.md Blocking Issues must be `- none` when the review conclusion is pass or conditional pass.");
+  }
+  return problems;
+}
+
+function validateTestReport(content) {
+  const problems = [];
+  const summary = sectionText(content, "Result Summary");
+  const checks = [
+    sectionText(content, "Executed Checks"),
+    sectionText(content, "Passed Checks"),
+    sectionText(content, "Failed Or Blocked Checks")
+  ].join("\n");
+  if (!/AC-\d+/i.test(`${summary}\n${checks}`)) {
+    problems.push("test-report.md must reference checked acceptance criteria such as `AC-01` in summary or checks.");
+  }
+  return problems;
+}
+
+function sectionText(content, heading) {
+  const escaped = escapeRegExp(String(heading).trim());
+  const match = String(content ?? "").match(new RegExp(`^##\\s+${escaped}\\s*$\\r?\\n?([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`, "im"));
+  return match?.[1]?.trim() ?? "";
+}
+
+function sectionHasSubstantiveBullet(section) {
+  return section.split(/\r?\n/).some((line) => {
+    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[.!]+$/g, "");
+    return text && !["none", "n/a", "no blocking issues", "-"].includes(text.toLowerCase());
+  });
 }
 
 function escapeRegExp(value) {

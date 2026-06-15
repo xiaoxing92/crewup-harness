@@ -1,29 +1,30 @@
 # CrewUp 模式治理说明
 
-CrewUp 不让 AI 自动选择真实 run 的模式。用户必须在 CLI 或聊天里明确指定模式，因为不同模式会生成不同文件，也有不同完成标准。
+CrewUp 允许 CLI 为真实 run 选择文档化默认 profile，但不允许 AI 在聊天里发明隐藏模式语义。用户可以在 CLI 或聊天里明确指定模式；没有指定时，CLI 会打印自动选择的 mode/profile，因为不同模式会生成不同文件，也有不同完成标准。
 
 ## 公开模式
 
 | 模式 | CLI | 聊天说法 | 内部 profile | 适合 |
 | --- | --- | --- | --- | --- |
-| `lite` | `npx crewup run --mode=lite "..."` | `使用 CrewUp lite ...` | `lite-v2` | 低风险、小范围实现 |
+| 默认小任务 | `npx crewup run "..."` | `使用 CrewUp ...` 且未说明模式 | `lite-v2` | 低风险、小范围直接实现 |
+| `lite` | `npx crewup run --mode=lite "..."` | `使用 CrewUp lite ...` | `lite` | 需要 delegated tester/reviewer/release 证据的正式轻量实现 |
 | `strict` | `npx crewup run --mode=strict "..."` | `使用 CrewUp strict ...` | `standard` | 正式多 agent 交付 |
 | `strict high risk` | `npx crewup run --mode=strict --risk=high "..."` | `使用 CrewUp strict，高风险 ...` | `full` | 权限、数据库、部署、安全、多模块大改 |
 | `plan` | `npx crewup run --mode=plan "..."` | `使用 CrewUp plan，只规划，不写代码 ...` | `plan_only` | 只产出计划，不改业务代码 |
 | `discovery` | `npx crewup run --mode=discovery "..."` | `使用 CrewUp discovery，盘点项目 ...` | `discovery` | 盘点结构、模块、技术栈、风险和后续 run |
 
-`--profile` 只保留给旧脚本兼容。真实创建 run 时，普通 `npx crewup run "..."` 不会创建 run，而是输出模式选择卡；`--dry-run` 可以不带 mode。
+`--profile` 只保留给旧脚本兼容。真实创建 run 时，普通 `npx crewup run "..."` 会按请求内容选择保守默认值并创建 run；`--dry-run` 可以不带 mode。
 
 ## 无模式时会发生什么
 
-CrewUp 不根据关键词替用户决定模式。
+CrewUp 会根据请求内容选择保守默认值，并在输出里明确打印选中的 mode/profile。
 
 ```bash
 npx crewup run "做一个博客中文化改造"
 npx crewup continue <run-id> "继续实现"
 ```
 
-这两类命令都不会创建真实 run。CrewUp 会显示 `plan`、`lite`、`strict` 三个选择、推荐理由和可复制命令。用户确认后再执行带 `--mode=...` 的命令。
+这两类命令都会创建真实 run。小范围低风险实现通常默认走 `lite-v2`；宽范围、高风险或明确要求完整交付时默认走 strict/full。用户想强制某条路径时，再执行带 `--mode=...` 或 `--profile=...` 的命令。
 
 从 `plan` run 继续时，选择含义是：
 
@@ -37,7 +38,8 @@ npx crewup continue <run-id> "继续实现"
 
 | 模式 | 固定生成文件 | native subagent plan | knowledge/report |
 | --- | --- | --- | --- |
-| `lite` | `spec.md`、`tasks.md`、`validation.md`、`summary.md`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 否 | finish/archive 时刷新 |
+| 默认 `lite-v2` | `spec.md`、`tasks.md`、`validation.md`、`summary.md`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 否 | finish/archive 时刷新 |
+| `lite` | strict 风格 run 文件，但使用更短预算和 delegated tester/reviewer/release 证据 | 是 | finish/archive 时刷新 |
 | `strict` | `input.md`、`state.json`、`tasks/`、`artifacts/`、`logs/native-subagents/`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 是 | finish/archive 时刷新 |
 | `strict --risk=high` | 同 `strict`，但使用 full profile 和更强证据要求 | 是 | finish/archive 时刷新 |
 | `plan` | `planning.md`、`acceptance.md`、`architecture-plan.md`、`implementation-plan.md`、`review.md`、`validation.md`、`summary.md` | 只用于规划/评审角色 | finish/archive 时刷新 |
@@ -45,11 +47,17 @@ npx crewup continue <run-id> "继续实现"
 
 ## 怎么算完成
 
-`lite` 完成：
+默认 `lite-v2` 完成：
 
 - 四个核心文件存在，`validation.md` 和 `summary.md` 不再是 pending。
 - 验证记录包含真实命令、结果和证据。
 - 没有发现必须升级 strict 的高风险范围。
+
+`lite` 完成：
+
+- requirements-plan、requirements、architect、implementation、tester、reviewer、release 按正式轻量契约完成。
+- 文档和上下文预算比 strict 更短，但 delegated evidence 必须完整。
+- audit、gate-check、report、finish 通过。
 
 `strict` 完成：
 

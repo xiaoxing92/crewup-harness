@@ -37,11 +37,12 @@ intake -> requirements-plan -> requirements -> architect
 
 The main agent coordinates, registers results, runs gates, and summarizes. Formal artifacts and business code are written by owner agents.
 
-## Explicit Modes
+## Modes And Defaults
 
-Real CrewUp runs require an explicit public mode. This keeps file layout, completion rules, and archive expectations predictable.
+CrewUp runs may use an explicit public mode, or they may let the CLI choose a documented default profile. The selected mode/profile is printed during run creation so file layout, completion rules, and archive expectations stay visible.
 
 ```bash
+npx crewup run "Fix a small UI issue and discover/run the necessary project validation"
 npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
 npx crewup run --mode=strict "Add a feature through formal multi-agent delivery"
 npx crewup run --mode=strict --risk=high "Add a high-risk permission system"
@@ -51,15 +52,17 @@ npx crewup run --mode=discovery "Map this project and propose next runs"
 
 `--profile` remains a compatibility alias for existing automation, but user-facing docs and chat prompts should use `--mode`.
 
-## Lite Opt-In Path
+## Lite Lightweight Paths
 
-`lite` is an explicit lightweight path for low-risk, scoped implementation tasks. It does not replace the strict core workflow and is not selected automatically.
+`lite-v2` is the default direct lightweight path for low-risk, scoped implementation tasks when no mode/profile is provided.
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
+npx crewup run "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory, does not create native subagent tasks, and does not require strict owner-artifact provenance. `finish` requires `validation.md` and `summary.md` to be updated from pending template state before success archive.
+
+Use explicit `--mode=lite` when you want a formal lightweight run with delegated tester/reviewer/release evidence and shorter budgets than strict.
 
 ## Operational Notes
 

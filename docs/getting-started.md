@@ -98,9 +98,9 @@ npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，�
 使用 CrewUp strict 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现。完成后请根据项目配置自行发现并执行必要验证。
 ```
 
-当你在聊天里明确说“使用 CrewUp”时，必须同时说明模式，例如 `lite`、`strict`、`plan` 或 `discovery`。主 agent 应该自己运行 `npx crewup run --mode=<mode> "<需求>"`，提取 runId，然后使用 `next-agent` 或 `drive` 调度。用户不需要为了拿 runId 先手动跑命令。
+当你在聊天里明确说“使用 CrewUp”时，可以同时说明模式，例如 `lite`、`strict`、`plan` 或 `discovery`。如果没有说明模式，主 agent 可以运行 `npx crewup run "<需求>"`，让 CrewUp 打印自动选择的 mode/profile。提取 runId 后，再使用 `next-agent` 或 `drive` 调度。用户不需要为了拿 runId 先手动跑命令。
 
-如果你没有说明模式，CrewUp 不会创建 run，只会显示一个模式选择卡：`plan` 只规划不改代码，`lite` 做小范围低风险实现，`strict` 做完整多 agent 交付。确认后再带 `--mode=...` 执行。
+如果你没有说明模式，CrewUp 会按请求内容选择保守默认值并创建 run。小范围低风险实现默认走直接轻量 `lite-v2`；完整功能、跨模块、高风险或明确 strict 的请求默认走 strict/full。想强制某条路径时，仍可显式传入 `--mode` 或 `--profile`。
 
 ## 观察调度
 
@@ -188,22 +188,22 @@ npx crewup cancel <run-id> --reason="scope changed"
 npx crewup continue <source-run-id> --mode=lite "继续处理上次未完成的小范围问题，复用已有需求和架构"
 ```
 
-新的 run 会读取来源 run 的 `RUN_STATUS.md`、`RUN_SUMMARY.md`、需求和架构产物。旧 run 不会被覆盖。`continue` 也必须显式选择模式；不带 `--mode` 时只显示 continuation 选择卡，不创建新 run。
+新的 run 会读取来源 run 的 `RUN_STATUS.md`、`RUN_SUMMARY.md`、需求和架构产物。旧 run 不会被覆盖。`continue` 不带 `--mode` 时，会结合新请求和来源 run 证据选择 continuation 默认值；想强制某条路径时，仍可显式传入 `--mode` 或 `--profile`。
 
 ## Lite 轻量 Run
 
-低风险、小范围任务可以显式使用 `lite`：
+低风险、小范围任务可以直接省略 mode，让默认路径走直接轻量 `lite-v2`：
 
 ```bash
-npx crewup run --mode=lite "修复一个小前端布局问题，并根据项目配置自行发现和执行必要验证"
+npx crewup run "修复一个小前端布局问题，并根据项目配置自行发现和执行必要验证"
 ```
 
-`lite` 会在 run 目录下直接生成 `spec.md`、`tasks.md`、`validation.md` 和 `summary.md`。它不会创建 native subagent tasks，也不会生成 native subagent plan。主 agent 可以在任务范围内直接实现，但必须先更新 `validation.md` 和 `summary.md`，再运行：
+`lite-v2` 会在 run 目录下直接生成 `spec.md`、`tasks.md`、`validation.md` 和 `summary.md`。它不会创建 native subagent tasks，也不会生成 native subagent plan。主 agent 可以在任务范围内直接实现，但必须先更新 `validation.md` 和 `summary.md`，再运行：
 
 ```bash
 npx crewup finish <run-id>
 ```
 
-`lite` 只在明确请求时使用。数据库、auth、安全、部署、跨模块或需要审计证据的任务仍应使用 `strict` 或 `strict --risk=high`。
+需要 tester/reviewer/release 委派证据的轻量正式流程，可以显式使用 `--mode=lite`。数据库、auth、安全、部署、跨模块或需要审计证据的任务仍应使用 `strict` 或 `strict --risk=high`。
 
 详细说明见 [Lite 轻量流程](./lite-v2.md)。

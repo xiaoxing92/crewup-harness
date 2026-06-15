@@ -25,6 +25,7 @@ import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope
 import { verifyCoreLock } from "./lib/core-lock.mjs";
 import { loadGeneratedMarkdownSchema, validateGeneratedMarkdownFile } from "./lib/generated-markdown.mjs";
 import { browserRuntimeVerificationProblems } from "./lib/runtime-verification.mjs";
+import { validateArtifactSemantics } from "./lib/artifact-renderer.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -118,6 +119,7 @@ async function checkArtifacts() {
         problems.push(`Artifact missing heading: ${file} -> ${heading}`);
       }
     }
+    problems.push(...validateArtifactSemantics(file, content));
   }
 }
 
@@ -366,7 +368,7 @@ async function checkVerifyReport() {
     problems.push("Required verification failed in test-report.md.");
   }
   if (state.stage && ["review", "release", "done"].includes(state.stage) && hasAcceptanceCriteria() && !/AC-\d+/i.test(content)) {
-    warnings.push("test-report.md does not reference numbered acceptance criteria (AC-*).");
+    problems.push("test-report.md does not reference numbered acceptance criteria (AC-*).");
   }
 }
 

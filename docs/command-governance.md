@@ -4,7 +4,7 @@
 
 这份文档回答三个问题：哪些命令是日常入口，哪些命令普通使用者可以忽略；每个模式怎么定义完成与未完成；成功、部分完成、阻塞、取消、失败之后应该怎么处理。
 
-治理原则：流程稳定来自更少的模糊入口和更明确的状态转换，而不是跳过证据、绕过规则或让 AI 自己猜模式。
+治理原则：流程稳定来自更少的模糊入口、更明确的状态转换和可解释的默认 profile，而不是跳过证据、绕过规则或让 AI 隐式改变契约。
 
 ## 日常入口
 
@@ -24,11 +24,11 @@
 | `npx crewup drive <run-id>` | 确定性推进可脚本化步骤 | 能关就关，不能关就输出下一步安全动作 |
 | `npx crewup finish <run-id>` | 证据齐全后尝试 success 收口 | 证据不足会拒绝成功 |
 | `npx crewup archive <run-id> --outcome=...` | 记录非成功结果 | 非成功默认保持 open，除非显式 `--close` |
-| `npx crewup continue <run-id> --mode=lite "..."` | 从历史 run 创建小范围延续实现 run | 复用来源证据，但由用户显式选择模式 |
-| `npx crewup continue <run-id> --mode=strict "..."` | 从历史 run 创建完整延续交付 run | 复用来源证据，但由用户显式选择模式 |
-| `npx crewup continue <run-id> --mode=plan "..."` | 从历史 run 创建延续规划 run | 复用来源证据，但由用户显式选择模式 |
+| `npx crewup continue <run-id> --mode=lite "..."` | 从历史 run 创建小范围正式轻量实现 run | 复用来源证据，并强制 formal lite |
+| `npx crewup continue <run-id> --mode=strict "..."` | 从历史 run 创建完整延续交付 run | 复用来源证据，并强制 strict |
+| `npx crewup continue <run-id> --mode=plan "..."` | 从历史 run 创建延续规划 run | 复用来源证据，并强制 plan |
 
-真实创建 run 时，普通 `npx crewup run "..."` 不会创建 run，而是输出模式选择卡。普通 `npx crewup continue <run-id> "..."` 也不会创建 continuation run，而是输出 continuation 模式选择卡。只有用户显式选择 `--mode=plan|lite|strict|discovery`，或旧自动化显式传入 `--profile`，才会创建真实 run。`--profile` 只保留给旧脚本兼容。
+真实创建 run 时，普通 `npx crewup run "..."` 会按请求内容选择保守默认 profile，并打印选中的 mode/profile。普通 `npx crewup continue <run-id> "..."` 会结合新请求和来源 run 证据选择 continuation 默认值。用户仍可显式选择 `--mode=plan|lite|strict|discovery`，或让旧自动化显式传入 `--profile`。`--profile` 只保留给旧脚本兼容。
 
 ## 命令分层
 
@@ -44,13 +44,14 @@
 
 | 模式 | 内部 profile | 固定产物 | native plan | knowledge/report |
 | --- | --- | --- | --- | --- |
-| `lite` | `lite-v2` | `spec.md`、`tasks.md`、`validation.md`、`summary.md`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 否 | finish/archive 时刷新 |
+| 默认 `lite-v2` | `lite-v2` | `spec.md`、`tasks.md`、`validation.md`、`summary.md`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 否 | finish/archive 时刷新 |
+| `lite` | `lite` | strict 风格 run 文件，但使用更短预算和 delegated tester/reviewer/release 证据 | 是 | finish/archive 时刷新 |
 | `strict` | `standard` | `input.md`、`state.json`、`tasks/`、`artifacts/`、`logs/native-subagents/`、`RUN_STATUS.md`、`RUN_SUMMARY.md` | 是 | finish/archive 时刷新 |
 | `strict --risk=high` | `full` | 同 `strict`，但使用更强证据要求 | 是 | finish/archive 时刷新 |
 | `plan` | `plan_only` | `planning.md`、`acceptance.md`、`architecture-plan.md`、`implementation-plan.md`、`review.md`、`validation.md`、`summary.md` | 只用于规划/评审角色 | finish/archive 时刷新 |
 | `discovery` | `discovery` | `discovery.md`、`module-map.md`、`tech-map.md`、`risk-map.md`、`next-runs.md`、`review.md`、`summary.md` | 只用于发现/评审角色 | finish/archive 时刷新 |
 
-所有 CrewUp run 都应该进入报告和知识索引，包括 blocked、partial、failed、canceled。模式差异是固定产物和完成标准不同，不是 AI 隐式选择不同路径。
+所有 CrewUp run 都应该进入报告和知识索引，包括 blocked、partial、failed、canceled。模式差异是固定产物和完成标准不同；无 mode 时的默认选择必须由 CLI 打印出来，避免 AI 隐式改变路径。
 
 ## 聊天怎么说
 
@@ -62,7 +63,7 @@
 - `继续这个 run，使用 CrewUp lite，只修复这个运行时 bug。`
 - `继续这个 plan run，使用 CrewUp strict，按已批准计划完整实现。`
 
-主 agent 不应该替用户自动选择 CrewUp 模式。如果用户只是说“帮我改一下”，且没有 CrewUp 信号，就按普通对话或普通代码任务处理，不创建 run。
+主 agent 不应该在聊天里发明隐藏模式语义。用户明确进入 CrewUp 但没有指定模式时，可以让 CLI 选择文档化默认值，并把选中的 mode/profile 汇报给用户。如果用户只是说“帮我改一下”，且没有 CrewUp 信号，就按普通对话或普通代码任务处理，不创建 run。
 
 ## 完成标准
 

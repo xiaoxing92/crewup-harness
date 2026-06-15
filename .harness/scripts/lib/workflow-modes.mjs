@@ -1,7 +1,7 @@
 export const publicModes = new Set(["lite", "strict", "plan", "discovery"]);
 
 const profileByMode = {
-  lite: "lite-v2",
+  lite: "lite",
   strict: "standard",
   plan: "plan_only",
   discovery: "discovery"
@@ -42,13 +42,14 @@ export function modeLabel({ mode = "", profile = "", risk = "normal" } = {}) {
 
 export function modeHelpText() {
   return [
-    "CrewUp run requires an explicit mode.",
+    "CrewUp run can infer a default mode, or you can choose one explicitly.",
     "",
     "Choose one:",
-    "  --mode=lite       low-risk small implementation",
+    "  --mode=lite       formal lightweight implementation with delegated verification",
     "  --mode=strict     formal multi-agent delivery",
     "  --mode=plan       planning only, no business code",
     "  --mode=discovery  project/module discovery, no business code",
+    "  --profile=lite-v2  direct scoped implementation without native subagents",
     "",
     "Examples:",
     '  npx crewup run --mode=lite "Fix a small UI issue"',

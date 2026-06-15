@@ -48,7 +48,7 @@ function buildReport(current) {
   const hasPendingRepair = repair.required;
 
   for (const agent of sortByExecutionOrder(agents.map((item) => item.agent)).map((id) => byAgent.get(id)).filter(Boolean)) {
-    if (hasPendingRepair && ["reviewer", "release"].includes(agent.agent)) {
+    if (hasPendingRepair && ["tester", "reviewer", "release"].includes(agent.agent)) {
       blocked.push({
         agent: agent.agent,
         status: agent.status ?? "planned",

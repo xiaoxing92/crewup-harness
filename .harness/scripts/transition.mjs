@@ -26,6 +26,7 @@ import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope
 import { writeRunStatus } from "./lib/run-lifecycle.mjs";
 import { loadGeneratedMarkdownSchema, renderGeneratedMarkdown } from "./lib/generated-markdown.mjs";
 import { browserRuntimeVerificationProblems } from "./lib/runtime-verification.mjs";
+import { validateArtifactSemantics } from "./lib/artifact-renderer.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -50,6 +51,7 @@ if (force && !forceReason) {
 }
 
 const runDir = path.join(root, ".harness", "runs", runId);
+const tasksDir = path.join(runDir, "tasks");
 const statePath = path.join(runDir, "state.json");
 const logsDir = path.join(runDir, "logs");
 const transitionLog = path.join(logsDir, "transitions.md");
@@ -197,6 +199,8 @@ async function requireArtifactContent(name, options = {}) {
   for (const heading of artifactSchema[name]?.required_headings ?? []) {
     if (!hasAnyHeading(content, headingAliases(heading))) fail(`Artifact ${name} missing required heading: ${heading}`);
   }
+  const semanticProblems = validateArtifactSemantics(name, content);
+  if (semanticProblems.length > 0) fail(semanticProblems.join("\n"));
   if (options.noPlaceholders && hasPlaceholder(content)) fail(`Artifact ${name} still contains template placeholders.`);
   if (options.requireImpactScope && availableImpactScopes().length > 0 && !hasMarkedImpactScope(content)) {
     fail(`requirement.md must mark at least one discovered impact scope before implementation. Available scopes: ${availableImpactScopes().join(", ")}`);
@@ -338,7 +342,6 @@ function isLiteImplementationOnlyRun(currentState) {
 }
 
 function availableTaskAgents() {
-  const tasksDir = path.join(runDir, "tasks");
   if (!existsSync(tasksDir)) return new Set();
   return new Set(
     listTaskFiles(tasksDir).map((name) => name.replace(/\.task\.md$/, ""))

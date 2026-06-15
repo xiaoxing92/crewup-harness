@@ -24,9 +24,9 @@ native_subagents:
       - "Run `native-state` mutations serially; never run `mark-spawned`, `mark-result`, or close-state commands in parallel for the same run."
       - "Review changed files before integration."
       - "Do not close a subagent only because it returned a result."
-      - "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup."
+      - "Keep only subagents that still need follow-up in `waiting_review`; completed subagents without follow-up may stay completed."
       - "Before closing retained subagents, run audit, gate-check, and report unless retention capacity forces earlier closure."
-      - "Close subagents only after marking them `ready_to_close` and recording the close audit."
+      - "Close only the still-needed retained subagents after marking them `ready_to_close` and recording the close audit."
 
   runtime:
     state_file: ".harness/runs/<run>/logs/native-subagents/native-state.json"
@@ -60,9 +60,9 @@ native_subagents:
   retention:
     prefer_resume_before_respawn: true
     capacity:
-      max_retained_subagents: 4
-      max_retained_implementation_agents: 2
-      max_retained_non_implementation_agents: 2
+      max_retained_subagents: 2
+      max_retained_implementation_agents: 1
+      max_retained_non_implementation_agents: 1
       close_recommendation_priority:
         - "release"
         - "reviewer"
@@ -77,22 +77,22 @@ native_subagents:
         - "docs"
         - "frontend"
     implementation_agents:
-      retain_after_result: true
+      retain_after_result: false
       keep_until:
         - "user_acceptance"
         - "run_done_or_archive"
         - "explicit_release_by_main_agent"
       close_status_before_close_agent: "ready_to_close"
-      retained_status_after_completed_result: "waiting_review"
+      retained_status_after_completed_result: "completed"
     non_implementation_agents:
-      retain_after_result: true
+      retain_after_result: false
       keep_until:
         - "user_acceptance"
         - "run_done_or_archive"
         - "explicit_release_by_main_agent"
       close_after_result_capture: false
       close_status_before_close_agent: "ready_to_close"
-      retained_status_after_completed_result: "waiting_review"
+      retained_status_after_completed_result: "completed"
 
   agent_type_by_role:
     pm: "explorer"

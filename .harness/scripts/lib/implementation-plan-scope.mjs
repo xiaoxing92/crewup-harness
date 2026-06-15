@@ -24,9 +24,10 @@ export function readImplementationPlan(root, runId) {
 export function implementationPlanAssignsAgent(content, agentId) {
   if (!implementationAgentIds.has(agentId)) return true;
   const patterns = agentPatterns[agentId] ?? [new RegExp(`\\b${escapeRegExp(agentId)}\\b`, "i")];
-  return String(content ?? "")
+  const lines = String(content ?? "")
     .split(/\r?\n/)
-    .some((line) => patterns.some((pattern) => pattern.test(line)) && !isExclusionLine(line));
+    .filter((line) => patterns.some((pattern) => pattern.test(line)));
+  return lines.some((line) => isAssignmentLine(line, agentId) && !isExclusionLine(line));
 }
 
 export function isImplementationAgentUnassigned(agentId, { root = process.cwd(), runId = "" } = {}) {
@@ -45,5 +46,15 @@ function escapeRegExp(value) {
 }
 
 function isExclusionLine(line) {
-  return /\b(not assigned|not required|excluded|out of scope|skip|skipped|not needed)\b/i.test(line);
+  return /\b(not assigned|not required|excluded|out of scope|skip|skipped|not needed|no changes?|no[- ]op|confirmation only|read[- ]only confirmation|no schema|no api)\b/i.test(line)
+    || /(?:不需要|无需|不授权|暂不授权|排除|跳过|不改|不修改|无变更|只读确认|确认无变更|不涉及)/.test(line);
+}
+
+function isAssignmentLine(line, agentId) {
+  if (/^\s*\|/.test(line)) {
+    const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+    return cells[0]?.toLowerCase() === agentId.toLowerCase();
+  }
+  return /\b(assign(?:ed|ment)?|owner|agent|implement|change|modify|update|scope|files?)\b/i.test(line)
+    || /(?:分配|负责|实现|修改|改造|范围|文件|owner|agent)/i.test(line);
 }

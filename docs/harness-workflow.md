@@ -36,7 +36,7 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-严格流程不靠跳过角色省 token，而是通过更窄的任务、更清晰的 result schema、更少重复返工来降低浪费。`lite` 只表示短文档和较低上下文预算，不表示跳过需求确认、架构计划或 owner 分配。
+严格流程不靠跳过角色省 token，而是通过更窄的任务、更清晰的 result schema、更少重复返工来降低浪费。没有指定 mode 时，CrewUp 可以为小范围低风险任务选择文档化的直接轻量默认路径 `lite-v2`；显式 `--mode=lite` 仍是正式轻量工作流。
 
 当需求里明确排除某个范围，例如 `no backend/database/auth/routing`，CrewUp 会避免误启动这些无关候选。但是否需要 backend、database、auth、routing，仍应主要由需求和 architect 的 `implementation-plan.md` 决定，而不是主 agent 主观接管。
 
@@ -164,12 +164,12 @@ npm run release:preflight
 
 这会覆盖配置完整性、临时项目安装、run 创建、任务顺序、owner artifact gate、implementation dispatch、repair-plan、archive closeout 和基础发布打包检查。
 
-## Lite 显式轻量流程
+## Lite 轻量流程
 
-`lite` 是显式启用的轻量路径，内部 profile 是 `lite-v2`，不是 strict 工作流。它用于低风险、小范围实现任务，适合 native subagent provenance 比任务本身更重的场景。
+`lite-v2` 是低风险、小范围实现任务的默认直接轻量路径，适合 native subagent provenance 比任务本身更重的场景。
 
 ```bash
-npx crewup run --mode=lite "修复一个小 UI 问题并记录验证"
+npx crewup run "修复一个小 UI 问题并记录验证"
 ```
 
 它的 run 结构是：
@@ -184,7 +184,9 @@ state.json
 RUN_STATUS.md
 ```
 
-`lite` 不生成 native subagent tasks，不创建 `native-subagent-plan.json`，也不要求 `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`。主 agent 可以在任务范围内直接实现。`finish` 会检查 `validation.md` 和 `summary.md` 不再是 pending 后才归档 success。
+`lite-v2` 不生成 native subagent tasks，不创建 `native-subagent-plan.json`，也不要求 `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`。主 agent 可以在任务范围内直接实现。`finish` 会检查 `validation.md` 和 `summary.md` 不再是 pending 后才归档 success。
+
+需要 delegated tester/reviewer/release 证据、但又比 strict 更轻的正式流程时，显式使用 `--mode=lite`。
 
 数据库、auth、安全、部署、跨模块或需要审计证据的任务仍应使用 strict 或 `strict --risk=high`。
 

@@ -647,14 +647,24 @@ async function checkNativeSubagents() {
   }
 
   const implementationRetention = config.retention?.implementation_agents;
-  if (implementationRetention?.retain_after_result !== true) {
-    errors.push(`${rel} retention.implementation_agents.retain_after_result must be true`);
+  if (typeof implementationRetention?.retain_after_result !== "boolean") {
+    errors.push(`${rel} retention.implementation_agents.retain_after_result must be a boolean`);
   }
-  if (implementationRetention?.retained_status_after_completed_result !== "waiting_review") {
-    errors.push(`${rel} retention.implementation_agents.retained_status_after_completed_result must be waiting_review`);
+  const implementationRetainedStatus = implementationRetention?.retain_after_result ? "waiting_review" : "completed";
+  if (implementationRetention?.retained_status_after_completed_result !== implementationRetainedStatus) {
+    errors.push(`${rel} retention.implementation_agents.retained_status_after_completed_result must be ${implementationRetainedStatus}`);
   }
   if (implementationRetention?.close_status_before_close_agent !== "ready_to_close") {
     errors.push(`${rel} retention.implementation_agents.close_status_before_close_agent must be ready_to_close`);
+  }
+
+  const nonImplementationRetention = config.retention?.non_implementation_agents;
+  if (typeof nonImplementationRetention?.retain_after_result !== "boolean") {
+    errors.push(`${rel} retention.non_implementation_agents.retain_after_result must be a boolean`);
+  }
+  const nonImplementationRetainedStatus = nonImplementationRetention?.retain_after_result ? "waiting_review" : "completed";
+  if (nonImplementationRetention?.retained_status_after_completed_result !== nonImplementationRetainedStatus) {
+    errors.push(`${rel} retention.non_implementation_agents.retained_status_after_completed_result must be ${nonImplementationRetainedStatus}`);
   }
 }
 
@@ -779,8 +789,8 @@ async function checkNativeExecutionGates() {
   const native = parseYaml(await readFile(nativePath, "utf8"))?.native_subagents;
   const lifecycle = native?.lifecycle ?? {};
   const afterResult = Array.isArray(lifecycle.after_result) ? lifecycle.after_result.join("\n") : "";
-  if (!afterResult.includes("waiting_review") || !afterResult.includes("ready_to_close")) {
-    errors.push(".harness/config/native-subagents.yaml after_result must preserve completed subagents in waiting_review and require ready_to_close before closing");
+  if (!afterResult.includes("waiting_review") || !afterResult.includes("ready_to_close") || !afterResult.includes("completed subagents without follow-up")) {
+    errors.push(".harness/config/native-subagents.yaml after_result must keep only follow-up subagents in waiting_review and require ready_to_close before closing retained agents");
   }
 }
 

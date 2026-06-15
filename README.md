@@ -31,8 +31,8 @@ CrewUp 是一套可复用的 AI engineering workflow harness。它不是 prompt 
 
 CrewUp 的当前设计原则很简单：
 
-- 正式工作必须显式进入 CrewUp，例如 `crewup run --mode=lite|strict|plan|discovery`。
-- 没有显式模式时，CrewUp 只显示模式选择卡，不创建 run；AI 可以推荐，但不替用户决定。
+- 正式工作必须显式进入 CrewUp；用户可以指定 `crewup run --mode=lite|strict|plan|discovery`，也可以让 CLI 按请求风险选择默认 profile。
+- 没有显式模式时，CrewUp 会输出自动选择的 mode/profile：小范围低风险默认走 `lite-v2`，宽范围或高风险默认走 strict/full；用户仍可用 `--mode` 或 `--profile` 覆盖。
 - 主 agent 负责创建 run、调度、登记结果、跑 gate/report/archive，并向用户汇报状态。
 - 正式产物由对应 owner agent 生成：需求、架构、实现、测试报告、评审报告和发布摘要都有明确归属。
 - 非成功结果默认保持 run open；只有用户明确放弃或关闭时才 `archive --close`。
@@ -95,9 +95,9 @@ npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，�
 使用 CrewUp strict 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现。完成后请根据项目配置自行发现并执行必要验证。
 ```
 
-如果是在聊天里提出需求，用户必须明确 CrewUp 模式。主 agent 应该自己运行 `npx crewup run --mode=<mode> "<需求>"`，拿到 runId 后继续 `npx crewup next-agent <run-id>` 或 `npx crewup drive <run-id>`。用户不需要为了拿 runId 手动跑命令。
+如果是在聊天里提出需求，用户可以明确 CrewUp 模式；没有说明模式时，主 agent 可以运行 `npx crewup run "<需求>"`，让 CrewUp 打印自动选择的 mode/profile。拿到 runId 后继续 `npx crewup next-agent <run-id>` 或 `npx crewup drive <run-id>`。用户不需要为了拿 runId 手动跑命令。
 
-如果没有明确模式，`npx crewup run "..."` 不会创建正式 run，只会输出 `plan`、`lite`、`strict` 三个选择和推荐理由。确认后再复制对应的 `--mode=...` 命令执行。
+如果没有明确模式，`npx crewup run "..."` 会按请求内容选择保守默认值并创建 run。小修、小 UI、单模块 bug 默认走直接轻量 `lite-v2`；完整功能、跨模块、高风险或明确 strict 的请求默认走 strict/full。
 
 ## 模式怎么选
 
@@ -132,7 +132,7 @@ npx crewup run "把博客项目全站中文化"
 npx crewup continue <run-id> "继续实现"
 ```
 
-CrewUp 只会显示选择卡，不会创建 run。这样可以防止 AI 因为关键词误判，把“我要实现”走成 plan，或把“小修复”走成完整 strict。
+CrewUp 会显示自动选择的 mode/profile 并创建 run。小范围低风险实现通常默认走 `lite-v2`；如果请求宽泛、涉及高风险范围，或明确要求完整交付，则默认走 strict/full。想强制某条路径时仍建议显式写 `--mode=plan|lite|strict|discovery` 或 `--profile=lite-v2`。
 
 ## 工作流一览
 
@@ -225,8 +225,8 @@ npm run release:preflight
 | [快速开始](./docs/getting-started.md) | 安装、API key、第一次 run 和排查 |
 | [工作流](./docs/harness-workflow.md) | 阶段、owner artifact、调度和 gate |
 | [模式治理](./docs/mode-governance.md) | 聊天怎么指定模式、每种模式生成什么、怎么判断完成 |
-| [模式选择器](./docs/mode-picker.md) | 没有显式 mode 时如何让用户选择 plan/lite/strict |
-| [Lite](./docs/lite-v2.md) | 显式启用的轻量实现流程 |
+| [默认模式选择](./docs/mode-picker.md) | 没有显式 mode 时如何选择默认 profile，以及如何覆盖 |
+| [Lite](./docs/lite-v2.md) | 默认直接轻量流程和显式 lightweight 模式 |
 | [Runbook](./docs/runbook.md) | 怎么判断正常、完成、卡住、取消和继续 |
 | [命令治理](./docs/command-governance.md) | 命令分层和完成态治理 |
 | [Memory Hints](./docs/memory-hints.md) | 候选经验、显式晋级和低 token 复用 |

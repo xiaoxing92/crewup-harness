@@ -38,8 +38,8 @@ A strict workflow does not skip roles just because a task is small. CrewUp reduc
 
 ## Core Capabilities
 
-- Explicit activation: real runs require an explicit mode such as `--mode=lite`, `--mode=strict`, `--mode=plan`, or `--mode=discovery`
-- Mode picker: without an explicit mode, CrewUp prints choices and creates no run; AI may recommend a mode, but the user chooses it
+- Explicit activation: users still opt into CrewUp, but `run` and `continue` may infer a default profile when no mode is provided
+- Mode defaults: small low-risk work defaults to `lite-v2`, broad or risky work defaults to strict/full, and users can still override with `--mode` or `--profile`
 - Main-agent boundary: the main agent orchestrates, checks, and summarizes; it does not write owner artifacts or business code
 - Ordered dispatch: `next-agent` returns only subagents whose prerequisites are complete
 - Stable front door: the first runnable agent in a formal run should be `requirements-plan`, not an implementation agent
@@ -123,11 +123,11 @@ Chat:
 Use CrewUp strict to plan and implement a tiny Todo MVP. Keep the full flow: requirements, architecture, implementation, tester, reviewer, release. Let requirements and architecture confirm the scope, then dispatch implementation agents from the architecture plan.
 ```
 
-When CrewUp is requested in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<user request>"`, extract the runId, then call `npx crewup next-agent <run-id>` or `npx crewup drive <run-id>` and continue orchestration. Users do not need to manually create a runId first.
+When CrewUp is requested in chat, the user may name the mode. If no mode is named, the main agent can run `npx crewup run "<user request>"` and let CrewUp print the selected default mode/profile. It should then extract the runId, call `npx crewup next-agent <run-id>` or `npx crewup drive <run-id>`, and continue orchestration. Users do not need to manually create a runId first.
 
 Requests without an explicit CrewUp signal remain normal assistant work.
 
-If a real `run` or `continue` command omits `--mode`, CrewUp prints a mode picker and exits without creating a run. The user can then choose the copied `--mode=plan`, `--mode=lite`, or `--mode=strict` command.
+If a real `run` or `continue` command omits `--mode`, CrewUp now chooses a conservative default profile from the request. Small low-risk work defaults to `lite-v2`; broad, risky, or explicitly strict work defaults to strict/full. Use `--mode` or `--profile` to override.
 
 ## Choosing A Mode
 
@@ -155,12 +155,14 @@ npx crewup continue <plan-run-id> --mode=lite "Implement only the first phase fr
 npx crewup continue <plan-run-id> --mode=strict "Implement the approved plan fully"
 ```
 
-Without `--mode`, CrewUp shows the picker and creates no run:
+Without `--mode`, CrewUp chooses a conservative default and creates the run:
 
 ```bash
 npx crewup run "Localize the whole blog project"
 npx crewup continue <run-id> "Continue implementation"
 ```
+
+Small low-risk work typically defaults to direct `lite-v2`; broad, risky, or explicitly strict work defaults to strict/full. Use `--mode` or `--profile` when you want to force a specific path.
 
 Mode examples:
 
@@ -256,7 +258,8 @@ npx crewup learn-promote <lesson-id>
 
 | Public mode | Internal profile | Best for |
 | --- | --- | --- |
-| `lite` | `lite-v2` | Low-risk narrow implementation; main agent may implement directly and must record `spec.md`, `tasks.md`, `validation.md`, and `summary.md` |
+| auto small work | `lite-v2` | Low-risk narrow implementation; main agent may implement directly and must record `spec.md`, `tasks.md`, `validation.md`, and `summary.md` |
+| `lite` | `lite` | Formal lightweight implementation with delegated verification and release evidence |
 | `strict` | `standard` | Normal formal multi-agent delivery |
 | `strict --risk=high` | `full` | High-risk, broad, multi-stage, or audit-heavy work |
 | `plan` | `plan_only` | Planning/no-code artifacts only; business-code gate is active |
@@ -282,15 +285,15 @@ Normally, users should describe the goal and constraints; requirements/architect
 
 ## Lite Lightweight Flow
 
-`lite` is an explicit opt-in path for low-risk, narrow changes. It is meant for small UI work, single-module bug fixes, and lightweight implementation tasks where the full native subagent audit chain would add more friction than value.
+`lite-v2` is the default path for low-risk, narrow changes when no mode is provided. It is meant for small UI work, single-module bug fixes, and lightweight implementation tasks where the full native subagent audit chain would add more friction than value.
 
 ```bash
-npx crewup run --mode=lite "Fix the Admin mobile overflow and discover/run the necessary project validation"
+npx crewup run "Fix the Admin mobile overflow and discover/run the necessary project validation"
 ```
 
 It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or `logs/native-subagents/native-subagent-plan.json`. The main agent may implement directly inside the scoped task, but `finish` refuses success while `validation.md` or `summary.md` still contain pending evidence.
 
-Use `lite` only by explicit request. The existing strict workflow remains unchanged and should still be used for database, auth, security, deploy, cross-module, or audit-heavy work. `--profile=lite-v2` remains available only as a compatibility alias.
+Use `--mode=lite` when you want a formal lightweight run with delegated tester/reviewer/release evidence. Use `--mode=strict` for database, auth, security, deploy, cross-module, or audit-heavy work. `--profile=lite-v2` remains available as an explicit direct-lightweight override.
 
 Detailed guide: [Lite Lightweight Flow](./docs/lite-v2.en.md).
 
@@ -343,8 +346,8 @@ See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
 | --- | --- |
 | [Workflow](./docs/harness-workflow.en.md) | Command flow, profiles, and run lifecycle |
 | [模式治理](./docs/mode-governance.md) | 中文说明：聊天怎么指定模式、每种模式生成什么、怎么算完成、卡住怎么办 |
-| [Mode Picker](./docs/mode-picker.en.md) | What happens when a run or continuation command omits an explicit mode |
-| [Lite](./docs/lite-v2.en.md) | Lightweight opt-in flow for small low-risk implementation tasks |
+| [Default Mode Selection](./docs/mode-picker.en.md) | How CrewUp chooses a default profile when mode is omitted, and how to override it |
+| [Lite](./docs/lite-v2.en.md) | Default direct-lightweight flow and explicit lightweight mode |
 | [Runbook](./docs/runbook.en.md) | How to judge health, completion, blockers, cancellation, and continuation |
 | [Command Governance](./docs/command-governance.en.md) | Daily/internal/maintenance command tiers plus complete, incomplete, blocked, and canceled outcome rules |
 | [Memory Hints](./docs/memory-hints.en.md) | Candidate lessons, explicit promotion, and low-token reuse |

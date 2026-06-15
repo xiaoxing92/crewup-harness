@@ -53,15 +53,12 @@ try {
   const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
   assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
 
-  const implicitRunOutput = runCliWithStatus(appDir, [
+  const implicitRunOutput = runCli(appDir, [
     "run",
-    "Use CrewUp to create a real run without an explicit mode."
-  ], { expectedStatus: 1 });
-  assertIncludes(implicitRunOutput, "CrewUp mode selection required", "real run without mode shows mode picker");
-  assertIncludes(implicitRunOutput, "A. plan", "mode picker explains plan");
-  assertIncludes(implicitRunOutput, "B. lite-v2", "mode picker explains lite-v2");
-  assertIncludes(implicitRunOutput, "C. strict", "mode picker explains strict");
-  assertIncludes(implicitRunOutput, "No run was created", "mode picker does not create a run");
+    "Use CrewUp to create a real tiny UI run without an explicit mode."
+  ]);
+  assertIncludes(implicitRunOutput, "- mode: lite (auto)", "real run without mode auto-selects lite-v2");
+  assertIncludes(implicitRunOutput, "- profile: lite-v2", "auto mode uses direct lite-v2 for tiny run");
 
   const planOnlyOutput = runCli(appDir, [
     "run",
@@ -82,8 +79,21 @@ try {
     "--dry-run",
     "\u4f7f\u7528 CrewUp \u4fee\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef UI \u95ee\u9898\uff0c\u8dd1 harness \u6d41\u7a0b"
   ]);
-  assertIncludes(tinyLiteOutput, "workflow_profile: lite", "tiny formal run may stay lite");
-  assertIncludes(tinyLiteOutput, "needs_requirements_plan: true", "lite still keeps requirements planning");
+  assertIncludes(tinyLiteOutput, "workflow_profile: lite-v2", "tiny auto run defaults to lite-v2");
+  assertIncludes(tinyLiteOutput, "needs_requirements_plan: false", "lite-v2 skips requirements planning");
+
+  const formalLiteRunOutput = runCli(appDir, [
+    "run",
+    "--mode=lite",
+    "Use CrewUp lite to fix a small frontend UI issue with delegated verification."
+  ]);
+  const formalLiteRunId = extractRunId(formalLiteRunOutput);
+  if (!formalLiteRunId) throw new Error(`Failed to detect formal lite runId from output: ${formalLiteRunOutput}`);
+  assertIncludes(formalLiteRunOutput, "- profile: lite", "--mode=lite maps to formal lite profile");
+  const formalLiteTaskNames = sortByExecutionOrder(await listTaskNames(path.join(appDir, ".harness", "runs", formalLiteRunId, "tasks")));
+  assertIncludes(formalLiteTaskNames.join(","), "tester", "formal lite keeps tester");
+  assertIncludes(formalLiteTaskNames.join(","), "reviewer", "formal lite keeps reviewer");
+  assertIncludes(formalLiteTaskNames.join(","), "release", "formal lite keeps release");
 
   const liteV2DryRunOutput = runCli(appDir, [
     "run",
@@ -96,7 +106,7 @@ try {
 
   const liteV2RunOutput = runCli(appDir, [
     "run",
-    "--mode=lite",
+    "--profile=lite-v2",
     "Use CrewUp lite-v2 to make a tiny frontend copy change and validate it."
   ]);
   const liteV2RunId = extractRunId(liteV2RunOutput);
@@ -122,7 +132,6 @@ try {
   const runtimeContinuationOutput = runCli(appDir, [
     "continue",
     liteV2RunId,
-    "--mode=lite",
     "修复 Next.js runtime console error，页面启动时报错"
   ]);
   assertIncludes(runtimeContinuationOutput, "profile: lite-v2", "small runtime continuation defaults to lite-v2");
@@ -199,11 +208,9 @@ try {
   }
   const planPendingFinish = runCliWithStatus(appDir, ["finish", planOnlyRunId], { expectedStatus: 1 });
   assertIncludes(planPendingFinish, "Cannot finish plan run", "plan finish blocks pending root evidence");
-  const planContinuePickerOutput = runCliWithStatus(appDir, ["continue", planOnlyRunId, "开始实现"], { expectedStatus: 1 });
-  assertIncludes(planContinuePickerOutput, "Source run", "plan continuation picker names source run");
-  assertIncludes(planContinuePickerOutput, "is a plan run", "plan continuation picker detects plan source");
-  assertIncludes(planContinuePickerOutput, "Choose how to use the approved plan", "plan continuation picker explains handoff");
-  assertIncludes(planContinuePickerOutput, "No continuation run was created", "plan continuation picker does not create a run");
+  const planContinueOutput = runCli(appDir, ["continue", planOnlyRunId, "开始实现"]);
+  assertIncludes(planContinueOutput, "Continuing", "plan continuation auto starts");
+  assertIncludes(planContinueOutput, "profile: standard", "plan continuation defaults to strict/standard for full plan implementation");
 
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
   assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
@@ -333,15 +340,13 @@ try {
 
   const forceWithoutReason = runCliWithStatus(appDir, ["transition", counterRunId, "--to=done", "--force"], { expectedStatus: 1 });
   assertIncludes(forceWithoutReason, "transition --force requires --force-reason", "force transition reason guard");
-  const continuePickerOutput = runCliWithStatus(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."], { expectedStatus: 1 });
-  assertIncludes(continuePickerOutput, "CrewUp continuation mode selection required", "continue without mode shows mode picker");
-  assertIncludes(continuePickerOutput, "A. plan", "continue mode picker explains plan");
-  assertIncludes(continuePickerOutput, "B. lite-v2", "continue mode picker explains lite-v2");
-  assertIncludes(continuePickerOutput, "C. strict", "continue mode picker explains strict");
-  assertIncludes(continuePickerOutput, "No continuation run was created", "continue mode picker does not create a run");
+  const autoContinueOutput = runCli(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."]);
+  assertIncludes(autoContinueOutput, "continuation mode: strict", "continue without mode auto-selects conservative strict for MVP continuation");
+  assertIncludes(autoContinueOutput, "- profile: standard", "auto MVP continuation uses standard profile");
   const continueOutput = runCli(appDir, ["continue", counterRunId, "--mode=lite", "Continue the counter MVP after cancellation with the same tiny scope."]);
   const continuationRunId = extractRunId(continueOutput);
   if (!continuationRunId) throw new Error(`Failed to detect continuation runId from output: ${continueOutput}`);
+  assertIncludes(continueOutput, "- profile: lite", "explicit --mode=lite continuation uses formal lite");
   const continuationInput = await readFile(path.join(appDir, ".harness", "runs", continuationRunId, "input.md"), "utf8");
   assertIncludes(continuationInput, `# Continuation Request From ${counterRunId}`, "continuation input links source run");
   const continuationState = JSON.parse(await readFile(path.join(appDir, ".harness", "runs", continuationRunId, "state.json"), "utf8"));
@@ -527,6 +532,8 @@ try {
   const nextAgent = JSON.parse(runCli(appDir, ["next-agent", planOnlyRunId, "--json"]));
   assertSameArray(nextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "initial runnable native agents");
   assertSameMembers(nextAgent.blocked.map((item) => item.agent), ["requirements", "architect", "reviewer"], "initial blocked native agents");
+  const transitionDoneGuard = runCliWithStatus(appDir, ["transition", planOnlyRunId, "--to=done"], { expectedStatus: 1 });
+  assertIncludes(transitionDoneGuard, "Invalid transition", "done transition reports normal gate error instead of tasksDir crash");
   const cleanAudit = JSON.parse(runCli(appDir, ["audit", planOnlyRunId, "--json"]));
   if (cleanAudit.counts.errors !== 0) throw new Error(`Expected clean orchestration audit, got ${cleanAudit.counts.errors} errors:\n${JSON.stringify(cleanAudit.findings, null, 2)}`);
   const prematureArchitectSpawn = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-spawned", "architect", "premature-architect"], { expectedStatus: 1 });
@@ -618,6 +625,54 @@ try {
   if (repairLoopAfterRefresh.rounds.length !== 1 || repairLoopAfterRefresh.rounds[0].round !== 1) {
     throw new Error(`repair-plan --refresh should not add a new round:\n${JSON.stringify(repairLoopAfterRefresh, null, 2)}`);
   }
+
+  const reviewArtifactProblemRun = "2026-06-15-001-review-artifact-check";
+  const reviewArtifactRunDir = path.join(appDir, ".harness", "runs", reviewArtifactProblemRun);
+  await mkdir(path.join(reviewArtifactRunDir, "artifacts"), { recursive: true });
+  await mkdir(path.join(reviewArtifactRunDir, "logs", "native-subagents"), { recursive: true });
+  await mkdir(path.join(reviewArtifactRunDir, "tasks"), { recursive: true });
+  await writeFile(path.join(reviewArtifactRunDir, "state.json"), `${JSON.stringify({
+    runId: reviewArtifactProblemRun,
+    stage: "release",
+    status: "active",
+    outcome: "none",
+    archived: false,
+    sourceRequirement: ""
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(reviewArtifactRunDir, "tasks", "reviewer.task.md"), "# Reviewer Task\n", "utf8");
+  await writeFile(path.join(reviewArtifactRunDir, "logs", "native-subagents", "native-state.json"), `${JSON.stringify({
+    runId: reviewArtifactProblemRun,
+    agents: [
+      { agent: "reviewer", handle: "reviewer-handle", status: "waiting_review", result_status: "completed", result_captured_at: new Date().toISOString(), retention: { retain_after_result: true } }
+    ]
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(reviewArtifactRunDir, "artifacts", "review-report.md"), "# Review Report\n\n## Conclusion\n\n- [x] pass\n\n## Blocking Issues\n\n- stale note\n\n## Non-Blocking Suggestions\n\n- none\n\n## Risks\n\n- none\n\n## Test Gaps\n\n- none\n\n## Definition Of Done\n\n- [ ] requirement satisfied\n", "utf8");
+  const reviewGate = runCliWithStatus(appDir, ["gate-check", reviewArtifactProblemRun], { expectedStatus: 1 });
+  assertIncludes(reviewGate, "review-report.md Blocking Issues must be", "review report formatting gate");
+
+  const testArtifactProblemRun = "2026-06-15-001-test-artifact-check";
+  const testArtifactRunDir = path.join(appDir, ".harness", "runs", testArtifactProblemRun);
+  await mkdir(path.join(testArtifactRunDir, "artifacts"), { recursive: true });
+  await mkdir(path.join(testArtifactRunDir, "logs", "native-subagents"), { recursive: true });
+  await mkdir(path.join(testArtifactRunDir, "tasks"), { recursive: true });
+  await writeFile(path.join(testArtifactRunDir, "state.json"), `${JSON.stringify({
+    runId: testArtifactProblemRun,
+    stage: "review",
+    status: "active",
+    outcome: "none",
+    archived: false,
+    sourceRequirement: ""
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(testArtifactRunDir, "tasks", "tester.task.md"), "# Tester Task\n", "utf8");
+  await writeFile(path.join(testArtifactRunDir, "logs", "native-subagents", "native-state.json"), `${JSON.stringify({
+    runId: testArtifactProblemRun,
+    agents: [
+      { agent: "tester", handle: "tester-handle", status: "waiting_review", result_status: "completed", result_captured_at: new Date().toISOString(), retention: { retain_after_result: true } }
+    ]
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(testArtifactRunDir, "artifacts", "test-report.md"), `# Test Report\n\n## Run\n\n- runId: ${testArtifactProblemRun}\n- tester: tester\n- generatedAt: ${new Date().toISOString()}\n\n## Result Summary\n\n- Verification completed.\n\n## Executed Checks\n\n- Record actual commands.\n\n## Passed Checks\n\n- none\n\n## Failed Or Blocked Checks\n\n- none\n\n## Uncovered Risks\n\n- none\n`, "utf8");
+  const testGate = runCliWithStatus(appDir, ["gate-check", testArtifactProblemRun], { expectedStatus: 1 });
+  assertIncludes(testGate, "test-report.md must reference checked acceptance criteria", "test report AC gate");
 
   console.log(JSON.stringify({
     planOnlyRunId,
@@ -982,6 +1037,7 @@ function renderFrontendOnlyImplementationPlan() {
 
 - backend is not assigned in this run.
 - database is not assigned in this run.
+- backend、database 暂不授权；只做前端，不改 API 契约或数据库 schema。
 
 ## Verification
 

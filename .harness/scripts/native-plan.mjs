@@ -574,8 +574,8 @@ function renderPlanMarkdown(plan) {
   lines.push("- Wait only when the next critical path step needs that agent's result.");
   lines.push("- Subagents must write `logs/native-subagents/<agent>.result.md/json` themselves; the main agent only registers existing results.");
   lines.push("- Formal artifacts must be written by their owner agents; the main agent captures results but does not author owner artifacts.");
-  lines.push("- Keep completed agents in `waiting_review` until they are no longer needed, while respecting retention capacity.");
-  lines.push("- If retention capacity is tight, run `harness:native-state -- <run-id> recommend-close` before starting more agents.");
+  lines.push("- Keep only subagents with unresolved follow-up in `waiting_review`; completed subagents without follow-up may remain completed.");
+  lines.push("- If retention capacity is tight, run `harness:native-state -- <run-id> recommend-close` before starting more agents, but do not retain finished agents just for habit.");
   lines.push("- Prefer resuming retained agents with `send_input`/`resume_agent` instead of spawning replacements.");
   lines.push("- Close an agent only after its result is captured and status is `ready_to_close`.");
   lines.push("");

@@ -8,7 +8,7 @@ import { isNativeAgentEnvironment, readAgentEnvironment } from "./lib/agent-runt
 import { semanticSlugFromText } from "./lib/naming.mjs";
 import { writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
 import { assertKnownMode, modeHelpText, modeLabel, profileFromMode } from "./lib/workflow-modes.mjs";
-import { renderRunModePicker } from "./lib/mode-picker.mjs";
+import { recommendedRunProfile } from "./lib/mode-picker.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -18,7 +18,9 @@ const fromRunId = valueOf("--from-run=");
 const modeArg = valueOf("--mode=");
 const riskArg = valueOf("--risk=") ?? "normal";
 const explicitProfileArg = valueOf("--profile=");
-const profileArg = explicitProfileArg ?? profileFromMode(modeArg, riskArg) ?? "auto";
+const inputText = text?.trim() ?? "";
+const inferredDefaultProfile = explicitProfileArg || modeArg ? null : recommendedRunProfile(inputText);
+const profileArg = explicitProfileArg ?? profileFromMode(modeArg, riskArg) ?? inferredDefaultProfile ?? "auto";
 const agentsArg = valueOf("--agents=");
 const dryRun = args.includes("--dry-run");
 
@@ -29,13 +31,6 @@ if (!text?.trim() && !runIdArg) {
 }
 
 const summary = [];
-const inputText = text?.trim() ?? "";
-
-if (!runIdArg && !dryRun && !modeArg && !explicitProfileArg) {
-  console.error(renderRunModePicker({ requestText: inputText }));
-  process.exit(1);
-}
-
 try {
   assertKnownMode(modeArg);
 } catch (error) {
@@ -98,7 +93,7 @@ await writeRunSummary(runId, { summary, analysis });
 await writeRunStatus(root, runId);
 
 console.log(`CrewUp run prepared: ${runId}`);
-console.log(`- mode: ${modeLabel({ mode: modeArg, profile: analysis.workflowProfile, risk: riskArg })}`);
+console.log(`- mode: ${modeLabel({ mode: modeArg, profile: analysis.workflowProfile, risk: riskArg })}${!modeArg && !explicitProfileArg ? " (auto)" : ""}`);
 if (modeArg === "strict") console.log(`- risk: ${riskArg}`);
 console.log(`- profile: ${analysis.workflowProfile}`);
 console.log(`- run_type: ${analysis.runType}`);

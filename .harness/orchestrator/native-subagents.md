@@ -22,9 +22,9 @@ npm run harness:native-state -- <run-id> status
 4. Wait only when the next critical step needs the result.
 5. Require each subagent to write its own `<agent>.result.md` and `<agent>.result.json`.
 6. Register existing result files with `native-state mark-result`.
-7. Keep completed agents in `waiting_review` until they are no longer useful or capacity requires release.
+7. Keep only agents that still need follow-up in `waiting_review`; completed agents without follow-up may remain `completed`.
 8. Run `audit`, `gate-check`, and `report` before closing retained agents when capacity allows.
-9. Mark agents `ready_to_close`, close them, then mark them `closed`.
+9. Mark retained agents `ready_to_close`, close them, then mark them `closed`.
 
 ## State Mutation Rule
 
